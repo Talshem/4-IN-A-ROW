@@ -32,15 +32,8 @@ jobs:
       run: |
         pytest
 
-    - name: Set up Google Cloud SDK
-      uses: google-github-actions/setup-gcloud@master
-      with:
-        version: 'latest'
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
-
-    - name: Deploy to Google App Engine
-      run: |
-        echo "GOOGLE_ENTRYPOINT=gunicorn -b :5000 app:app" >> $GITHUB_ENV
-        gcloud app deploy
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'app'
+      - 'deploy'

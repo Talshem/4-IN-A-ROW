@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css') }}"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>4 In a Row</title>
+  </head>
+
+  <body>
+    <div class="game-board" id="game-board">
+      <div class="board-row">
+        {% for col_index in range(game.grid[0] | length) %}
+        <div class="insert" onclick="columnClicked({{ col_index }})">+</div>
+        {% endfor %}
+      </div>
+      {% for row_index, row in enumerate(game.grid) %}
+      <div class="board-row">
+        {% for col_index, cell in enumerate(row) %}
+        <div class="square">
+          {% if cell == 'Red' %}
+          <div class="red-circle"></div>
+          {% elif cell == 'Blue' %}
+          <div class="blue-circle"></div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="game-info">
+      <div>
+        Current player:
+        <span style="color: {{game.current_player}}" id="current-player"
+          >{{ game.current_player }}</span
+        >
+      </div>
+      <ul id="previous-moves">
+        {% for move_index, move in enumerate(game.memory) %}
+        <li>
+          <button onclick="goToMove({{ move_index }})">
+            Go to move #{{ move_index }}
+          </button>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="reset" onclick="newGame()">New Game</div>
+
+    <div id="winModal" class="modal" style="display: none;">
+      <h2>Congratulations winner!</h2>
+      <div>Place your name in the records list!</div>
+      <form>
+        <input
+          type="text"
+          id="winner-name"
+          placeholder="Your Name"
+          style="
+            border: 2px solid white;
+            border-radius: 5px;
+            margin: 1vw;
+            font-size: 1vw;
+            width: 80%;
+          "
+        />
+        <br />
+        <button type="button" onclick="submitWinner()">Send</button>
+        <button type="button" onclick="newGame()">Cancel</button>
+      </form>
+    </div>
+    
+    <div id="drawModal" class="modal" style="display: none;">
+      <h2>Draw!</h2>
+      <button type="button" onclick="newGame()">New Game</button>
+    </div>
+    
+
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Winner</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="winners-list">
+          {% for winner in winners %}
+          <tr>
+            <td>{{ winner.winner }}</td>
+            <td>{{ winner.date }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script>
+      var socket = io.connect(
+        "http://" + document.domain + ":" + location.port
+      );
+
+      socket.on("update_game_state", function (data) {
+        console.log(data);
+        const gameBoard = document.getElementById("game-board");
+        gameBoard.innerHTML = "";
+
+        let hoverRowDiv = document.createElement("div");
+        hoverRowDiv.classList.add("board-row");
+
+        data.game.grid[0].forEach((_, colIndex) => {
+          let hoverSquareDiv = document.createElement("div");
+          hoverSquareDiv.classList.add("insert");
+          hoverSquareDiv.innerHTML = "+";
+          hoverSquareDiv.onclick = function () {
+            columnClicked(colIndex);
+          };
+          hoverRowDiv.appendChild(hoverSquareDiv);
+        });
+
+        gameBoard.appendChild(hoverRowDiv);
+        data.game.grid.forEach((row, rowIndex) => {
+          let rowDiv = document.createElement("div");
+          rowDiv.classList.add("board-row");
+          row.forEach((cell, colIndex) => {
+            let squareDiv = document.createElement("div");
+            squareDiv.classList.add("square");
+            if (cell === "Red") {
+              squareDiv.innerHTML = '<div class="red-circle"></div>';
+            } else if (cell === "Blue") {
+              squareDiv.innerHTML = '<div class="blue-circle"></div>';
+            }
+            rowDiv.appendChild(squareDiv);
+          });
+          gameBoard.appendChild(rowDiv);
+        });
+
+        const movesList = document.getElementById("previous-moves");
+        movesList.innerHTML = "";
+
+        data.game.memory.forEach(function (move, moveIndex) {
+          const listItem = document.createElement("li");
+          const button = document.createElement("button");
+          button.textContent = `Go to move #${moveIndex}`;
+          button.setAttribute("onclick", `goToMove(${moveIndex})`);
+
+          listItem.appendChild(button);
+          movesList.appendChild(listItem);
+        });
+
+        const playerElement = document.getElementById("current-player");
+        playerElement.innerText = data.game.current_player;
+        playerElement.style.color = data.game.current_player;
+
+        const winnersTableBody = document.getElementById("winners-list");
+        winnersTableBody.innerHTML = "";
+        data.winners.forEach(function (winner) {
+          const row = document.createElement("tr");
+
+          const winnerCell = document.createElement("td");
+          winnerCell.textContent = winner.winner;
+
+          const dateCell = document.createElement("td");
+          dateCell.textContent = winner.date;
+
+          row.appendChild(winnerCell);
+          row.appendChild(dateCell);
+
+          winnersTableBody.appendChild(row);
+        });
+
+        if (data.game.current_game_state === "win") {
+          document.getElementById("winModal").style.display = "block";
+        } else if (data.game.current_game_state === "draw") {
+          document.getElementById("drawModal").style.display = "block";
+        } else {
+          document.getElementById("winModal").style.display = "none";
+          document.getElementById("drawModal").style.display = "none";
+        }
+      });
+
+      function columnClicked(col) {
+        fetch("/column-click", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ col: col }),
+        })
+          .then((response) => response.json())
+          .then((data) => console.log(data));
+      }
+
+      function goToMove(moveIndex) {
+        fetch("/go-to-move", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ move: moveIndex }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data);
+          });
+      }
+
+      function newGame() {
+        fetch("/new-game", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+          });
+      }
+
+      function submitWinner() {
+        const name = document.getElementById("winner-name").value;
+
+        fetch("/submit-winner", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            winner: name,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              alert("Winner submitted successfully!");
+              newGame();
+            }
+          });
+      }
+    </script>
+  </body>
+</html>

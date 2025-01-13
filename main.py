@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, jsonify
 from game import Game
 from flask_socketio import SocketIO, emit
+import eventlet
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -86,4 +87,5 @@ def submit_winner():
     return jsonify(success=True) 
 
 if __name__ == '__main__':
+    eventlet.monkey_patch()
     socketio.run(app, debug=True)

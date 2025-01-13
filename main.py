@@ -27,6 +27,7 @@ def add_enumerate_to_jinja():
 @app.route('/')
 def home():
     global game, winners
+    game.new_game()
     return render_template('index.html', game=game.to_dict(), winners=winners)
 
 

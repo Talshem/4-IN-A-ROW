@@ -36,13 +36,8 @@ jobs:
       run: |
         pytest
         
-    - name: Decode GCP Service Account Key
-      run: |
-        echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > gcp-service-account-key.json
-        
-    - name: Deploy to Google Cloud
-      uses: google-github-actions/deploy-appengine@v0
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        key_file: gcp-service-account-key.json
-        entrypoint: 'gunicorn -b 0.0.0.0:8080 app:app'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'app'
+      - 'deploy'

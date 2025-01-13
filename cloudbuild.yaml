@@ -37,3 +37,5 @@ jobs:
     args:
       - 'app'
       - 'deploy'
+      - '--allow-unauthenticated'
+      - '--port=5000'
